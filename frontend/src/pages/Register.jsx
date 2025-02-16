@@ -11,6 +11,31 @@ import {
   CircularProgress,
 } from "@mui/material";
 import axios from "axios";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import Toast from "../components/Toast";
+
+const registerSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email"),
+  password: z
+    .string()
+    .min(8, "Password should be at least 8 characters")
+    .regex(/[A-Za-z]/, "Password must contain at least one letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(
+      /[^A-Za-z0-9]/,
+      "Password must contain at least one special character"
+    ),
+  number: z
+    .string()
+    .min(1, "Phone number is required")
+    .regex(/^\d{8,}$/, "Phone number must be at least 8 digits"),
+});
 
 const Register = () => {
   const navigate = useNavigate();
@@ -18,89 +43,37 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(registerSchema),
+  });
+
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    number: "",
-  });
-
-  const [errors, setErrors] = useState({
-    name: false,
-    email: false,
-    password: false,
-    number: false,
-  });
-
-  const validateEmptyField = (text) => text !== "";
-
-  const passwordRegex =
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-
-  const handleFormData = (e) => {
-    const { name, value } = e.target;
-
-    if (name === "number" && !/^\d*$/.test(value)) {
-      return;
-    }
-
-    setFormData({ ...formData, [name]: value });
-
-    // Validate based on field
-    if (name === "email") {
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        email: !emailRegex.test(value),
-      }));
-    } else if (name === "password") {
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        password: !passwordRegex.test(value),
-      }));
-    } else {
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        [name]: value.trim() === "",
-      }));
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    const nameValid = validateEmptyField(formData.name);
-    const emailValid =
-      validateEmptyField(formData.email) && emailRegex.test(formData.email);
-    const passwordValid =
-      validateEmptyField(formData.password) &&
-      passwordRegex.test(formData.password);
-    const numberValid = validateEmptyField(formData.number);
-
-    setErrors({
-      name: !nameValid,
-      email: !emailValid,
-      password: !passwordValid,
-      number: !numberValid,
-    });
-
-    if (nameValid && emailValid && passwordValid && numberValid) {
-      setIsLoading(true);
-
+  const onSubmit = async (data) => {
+    setIsLoading(true);
+    try {
       const response = await axios.post(
-        "http://localhost:5000/register",
-        formData
+        "http://localhost:5000/users/signup",
+        data
       );
 
-      if (response?.status === 200) {
-        localStorage.setItem("token", response?.data?.token);
-        navigate("/dashboard");
+      if (response?.status === 201) {
+        Toast({ message: response?.data?.message, variant: "success" });
+        navigate("/login");
       }
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        Toast({ message: error?.response?.data?.message, variant: "error" });
+      }
+    } finally {
       setIsLoading(false);
     }
   };
+
   return (
     <Box
       sx={{
@@ -109,20 +82,6 @@ const Register = () => {
         background: "linear-gradient(to right, #4CAF50,  #10B981)",
       }}
     >
-      {/* Left side (background) */}
-      {/* <Box
-        sx={{
-          flex: 1,
-          background: "rgba(0, 0, 0, 0.7)",
-          opacity: 0.9,
-        }}
-      >
-        <Typography variant="h4" gutterBottom align="center" color="primary">
-          Ad Management
-        </Typography>
-      </Box> */}
-
-      {/* Right side (register form) */}
       <Box
         sx={{
           flex: 1,
@@ -154,17 +113,18 @@ const Register = () => {
             Create your account
           </Typography>
 
-          <Box component="form" noValidate onSubmit={handleSubmit}>
+          <Box component="form" noValidate onSubmit={handleSubmit(onSubmit)}>
             <FormControl fullWidth margin="normal">
               <TextField
+                autoFocus
+                placeholder="John Doe"
                 required
                 id="name"
                 label="Name"
                 name="name"
-                value={formData.name}
-                onChange={handleFormData}
-                error={errors.name}
-                helperText={errors.name ? "Name is required" : ""}
+                {...register("name")}
+                error={!!errors.name}
+                helperText={errors.name?.message}
               />
             </FormControl>
 
@@ -175,10 +135,10 @@ const Register = () => {
                 label="Email"
                 name="email"
                 autoComplete="email"
-                value={formData.email}
-                onChange={handleFormData}
-                error={errors.email}
-                helperText={errors.email ? "Email is required" : ""}
+                placeholder="john.doe@email.com"
+                {...register("email")}
+                error={!!errors.email}
+                helperText={errors.email?.message}
               />
             </FormControl>
 
@@ -189,11 +149,11 @@ const Register = () => {
                 label="Password"
                 type={showPassword ? "text" : "password"}
                 id="password"
-                value={formData.password}
-                onChange={handleFormData}
-                error={errors.password}
-                helperText={errors.password ? "Password is required" : ""}
+                {...register("password")}
+                error={!!errors.password}
+                helperText={errors.password?.message}
                 autoComplete="password"
+                placeholder="Example@123"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
@@ -220,10 +180,10 @@ const Register = () => {
                 id="number"
                 label="Phone Number"
                 name="number"
-                value={formData.number}
-                onChange={handleFormData}
-                error={errors.number}
-                helperText={errors.number ? "Phone number is required" : ""}
+                placeholder="000 000 0000"
+                {...register("number")}
+                error={!!errors.number}
+                helperText={errors.number?.message}
               />
             </FormControl>
 

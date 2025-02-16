@@ -11,6 +11,26 @@ import {
   CircularProgress,
 } from "@mui/material";
 import axios from "axios";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import Toast from "../components/Toast";
+
+const loginSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email"),
+  password: z
+    .string()
+    .min(8, "Password should be at least 8 characters")
+    .regex(/[A-Za-z]/, "Password must contain at least one letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(
+      /[^A-Za-z0-9]/,
+      "Password must contain at least one special character"
+    ),
+});
 
 const Login = () => {
   const navigate = useNavigate();
@@ -18,57 +38,34 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+  });
+
   const handleClickShowPassword = () => setShowPassword((show) => !show);
 
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-
-  const [errors, setErrors] = useState({
-    email: false,
-    password: false,
-  });
-
-  const validateEmptyField = (text) => text !== "";
-
-  const handleFormData = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-
-    if (name === "email") {
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        email: value.trim() === "",
-      }));
-    } else if (name === "password") {
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        password: value.trim() === "",
-      }));
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const passwordValid = validateEmptyField(formData.password);
-    const emailValid = validateEmptyField(formData.email);
-    setErrors({
-      email: !emailValid,
-      password: !passwordValid,
-    });
-    if (emailValid && passwordValid) {
-      setIsLoading(true);
-
+  const onSubmit = async (data) => {
+    setIsLoading(true);
+    try {
       const response = await axios.post(
-        "http://localhost:5000/login",
-        formData
+        "http://localhost:5000/users/login",
+        data
       );
 
       if (response?.status === 200) {
+        Toast({ message: response?.data?.message, variant: "success" });
         localStorage.setItem("token", response?.data?.token);
         navigate("/dashboard");
       }
+    } catch (error) {
+      if (error?.response?.data?.message) {
+        Toast({ message: error?.response?.data?.message, variant: "error" });
+      }
+    } finally {
       setIsLoading(false);
     }
   };
@@ -81,23 +78,6 @@ const Login = () => {
         background: "linear-gradient(to right, #4CAF50,  #10B981)",
       }}
     >
-      {/* Left side (background) */}
-      {/* <Box
-        sx={{
-          flex: 1,
-          // backgroundImage: "url('https://api.unsplash.com/users/lukeskywalker')",
-          // backgroundSize: "cover",
-          // backgroundPosition: "center",
-          // background: "linear-gradient(to right, #1E40AF, #1E40AF)",
-          background:'rgba(0, 0, 0, 0.7)',
-          opacity: 0.9,
-        }}
-      >
-        <Typography variant="h4" gutterBottom align="center" color="primary">
-          Ad Management
-        </Typography>
-      </Box> */}
-
       {/* Right side (login form) */}
       <Box
         sx={{
@@ -130,19 +110,19 @@ const Login = () => {
             Login to your account
           </Typography>
 
-          <Box component="form" noValidate onSubmit={handleSubmit}>
+          <Box component="form" noValidate onSubmit={handleSubmit(onSubmit)}>
             <FormControl fullWidth margin="normal">
               <TextField
+                autoFocus
                 required
                 id="email"
                 label="Email"
                 name="email"
                 autoComplete="email"
-                value={formData.email}
-                autoFocus
-                onChange={handleFormData}
-                error={errors.email}
-                helperText={errors.email ? "Email is required" : ""}
+                placeholder="john.doe@email.com"
+                {...register("email")}
+                error={!!errors.email}
+                helperText={errors.email?.message}
               />
             </FormControl>
 
@@ -153,11 +133,11 @@ const Login = () => {
                 label="Password"
                 type={showPassword ? "text" : "password"}
                 id="password"
-                value={formData.password}
-                onChange={handleFormData}
-                error={errors.password}
-                helperText={errors.password ? "Password is required" : ""}
+                {...register("password")}
+                error={!!errors.password}
+                helperText={errors.password?.message}
                 autoComplete="password"
+                placeholder="Example@123"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
@@ -201,7 +181,7 @@ const Login = () => {
               }}
             >
               {isLoading ? (
-                <CircularProgress size={20} color="secondary" />
+                <CircularProgress size={20} color="inherit" />
               ) : (
                 <Typography variant="body1">Login</Typography>
               )}
