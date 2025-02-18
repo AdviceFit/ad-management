@@ -9,6 +9,7 @@ import {
   Box,
   Typography,
   FormHelperText,
+  CircularProgress,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
@@ -17,6 +18,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ImageSelector from "./ImageSelector";
 import axios from "axios";
+import Toast from "../components/Toast";
+import { useNavigate } from "react-router-dom";
 
 const AddCampaign = () => {
   const schema = z.object({
@@ -119,6 +122,7 @@ const AddCampaign = () => {
     getValues,
     watch,
     trigger,
+    reset,
   } = useForm({
     resolver: zodResolver(schema),
     mode: "onChange",
@@ -126,33 +130,54 @@ const AddCampaign = () => {
 
   console.log(errors);
 
+  const navigate = useNavigate();
+
   const [showImageSelector, setShowImageSelector] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [templateUrlsResponse, setTemplateUrlsResponse] = useState([]);
+  const [addCampaignLoading, setAddCampaignLoading] = useState(false);
+
   const selectedTemplate = watch("templateUrl");
 
   const handleTemplateCreationApi = async () => {
     const formData = getValues();
-    // formData.templateUrl = templateUrl; // Add the template URL to form data
+
+    const { productDetails } = formData;
 
     try {
-      const response = await axios.post("your-api-endpoint", formData, {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      setIsLoading(true);
+      const response = await axios.post(
+        "http://44.201.129.4:8000/generate-template-sd/",
+        productDetails,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       console.log("handleTemplateCreationApi Response:", response.data);
+      if (response?.data?.image_urls) {
+        setTemplateUrlsResponse(response?.data?.image_urls);
+        setIsLoading(false);
+      } else {
+        setIsLoading(false);
+      }
     } catch (error) {
+      setIsLoading(false);
       console.error("handleTemplateCreationApi Error:", error);
     }
   };
 
   const handleGenerateClick = async () => {
-    const fieldsToValidate = Object.keys(getValues());
+    const fieldsToValidate = [
+      "productDetails.name",
+      "productDetails.description",
+      "productDetails.promoDetails",
+      "productDetails.landingPageURL",
+    ];
 
-    const fieldsWithoutTemplateUrl = fieldsToValidate.filter(
-      (field) => field !== "templateUrl"
-    );
-    const isValidForm = await trigger(fieldsWithoutTemplateUrl);
+    const isValidForm = await trigger(fieldsToValidate);
 
     if (isValidForm) {
       handleTemplateCreationApi();
@@ -160,8 +185,38 @@ const AddCampaign = () => {
     }
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     console.log("Form submitted:", data);
+
+    try {
+      setAddCampaignLoading(true);
+
+      const response = await axios.post(
+        "http://localhost:5000/api/campaigns",
+        data,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      console.log("campaiagn data added successfully:", response.data);
+
+      if (response?.status === 201) {
+        Toast({
+          message: "campaiagn created successfully.",
+          variant: "success",
+        });
+        reset();
+        navigate("/campaigns");
+        setAddCampaignLoading(false);
+      } else {
+        setAddCampaignLoading(false);
+      }
+    } catch (error) {
+      console.error("Error campaign saving data:", error);
+      setAddCampaignLoading(false);
+    }
   };
 
   return (
@@ -610,11 +665,25 @@ const AddCampaign = () => {
               </Grid>
             </Grid>
           )}
-          {showImageSelector && (
-            <Grid item xs={12}>
-              <ImageSelector control={control} errors={errors} />
+
+          {isLoading && (
+            <Grid container justifyContent="center">
+              <Grid size={{ xs: 1 }}>
+                <CircularProgress size={40} color="inherit" />
+              </Grid>
             </Grid>
           )}
+          {!isLoading &&
+            showImageSelector &&
+            templateUrlsResponse.length > 0 && (
+              <Grid item xs={12}>
+                <ImageSelector
+                  control={control}
+                  errors={errors}
+                  templateUrlsResponse={templateUrlsResponse}
+                />
+              </Grid>
+            )}
 
           {/* Submit Button */}
           <Grid container justifyContent="flex-end">
@@ -624,9 +693,13 @@ const AddCampaign = () => {
                 color="primary"
                 type="submit"
                 fullWidth
-                disabled={!showImageSelector}
+                disabled={!showImageSelector || isLoading}
               >
-                Create
+                {addCampaignLoading ? (
+                  <CircularProgress size={20} color="inherit" />
+                ) : (
+                  <Typography variant="body1">Create</Typography>
+                )}
               </Button>
             </Grid>
           </Grid>
