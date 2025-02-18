@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   TextField,
   MenuItem,
@@ -11,71 +11,154 @@ import {
   FormHelperText,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
+import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import ImageSelector from "./ImageSelector";
+import axios from "axios";
 
 const AddCampaign = () => {
-    const schema = z.object({
-        name: z.string().min(1, { message: "Name is required" }),
-      
-        goal: z.enum(
-          ["Sales Growth", "Lead Generation", "Brand Awareness", "App Installations", "Custom"],
-          { message: "Please select a valid goal" }
-        ),
-      
-        // customGoal: z.string().min(1, { message: "Custom goal is required when 'Custom' is selected as the goal" }),
-      
-        kpis: z.array(z.string().min(1, { message: "Each KPI should be a non-empty string" })).min(1, { message: "At least one KPI is required" }),
-      
-        budget: z.object({
-          total: z.string().transform(value => parseFloat(value)).refine(value => !isNaN(value) && value >= 0, { message: "Total budget cannot be less than 0" }),
-          dailyCap: z.string().transform(value => parseFloat(value)).refine(value => !isNaN(value) && value >= 0, { message: "Daily cap cannot be less than 0" }),
-          duration: z.string().transform(value => parseInt(value, 10)).refine(value => !isNaN(value) && value >= 1, { message: "Duration must be at least 1 day" }),
+  const schema = z.object({
+    name: z.string().min(1, { message: "Name is required" }),
+
+    goal: z.enum(
+      [
+        "Sales Growth",
+        "Lead Generation",
+        "Brand Awareness",
+        "App Installations",
+        "Custom",
+      ],
+      { message: "Please select a valid goal" }
+    ),
+
+    // customGoal: z.string().min(1, { message: "Custom goal is required when 'Custom' is selected as the goal" }),
+
+    kpis: z
+      .array(
+        z.string().min(1, { message: "Each KPI should be a non-empty string" })
+      )
+      .min(1, { message: "At least one KPI is required" }),
+
+    budget: z.object({
+      total: z
+        .string()
+        .transform((value) => parseFloat(value))
+        .refine((value) => !isNaN(value) && value >= 0, {
+          message: "Total budget cannot be less than 0",
         }),
-      
-        audience: z.object({
-          demographics: z.object({
-            ageRange: z.array(z.string().min(1, { message: "Age range cannot be empty" })).min(1, { message: "Age range is required" }),
-            gender: z.enum(["Male", "Female", "Other"], { message: "Please select a valid gender" }),
-            location: z.string().min(1, { message: "Location is required" }),
-            language: z.string().min(1, { message: "Language is required" }),
-          }),
-      
-          interests: z.array(z.string().min(1, { message: "Each interest should be a non-empty string" })).min(1, { message: "At least one interest is required" }),
-        //   lookalike: z.boolean().refine(value => value === true || value === false, { message: "Lookalike must be a boolean value" }),
-        //   retargeting: z.boolean().refine(value => value === true || value === false, { message: "Retargeting must be a boolean value" }),
+      dailyCap: z
+        .string()
+        .transform((value) => parseFloat(value))
+        .refine((value) => !isNaN(value) && value >= 0, {
+          message: "Daily cap cannot be less than 0",
         }),
-      
-        productDetails: z.object({
-          name: z.string().min(1, { message: "Product name is required" }),
-          description: z.string().min(1, { message: "Product description is required" }),
-          promoDetails: z.string().min(1, { message: "Promo details are required" }),
-          landingPageURL: z.string().url({ message: "Invalid URL" }).min(1, { message: "Landing page URL is required" }),
+      duration: z
+        .string()
+        .transform((value) => parseInt(value, 10))
+        .refine((value) => !isNaN(value) && value >= 1, {
+          message: "Duration must be at least 1 day",
         }),
-      
-        deployment: z.object({
-          platformAllocation: z.object({
-          metaAllocation: z.string().transform(value => parseFloat(value)).refine(value => !isNaN(value) && value >= 0, { message: "Meta Allocation must be a valid number and not negative" }),
-          tiktokAllocation: z.string().transform(value => parseFloat(value)).refine(value => !isNaN(value) && value >= 0, { message: "TikTok Allocation must be a valid number and not negative" }),
-          googleAllocation: z.string().transform(value => parseFloat(value)).refine(value => !isNaN(value) && value >= 0, { message: "Google Allocation must be a valid number and not negative" }),
-          linkedinAllocation: z.string().transform(value => parseFloat(value)).refine(value => !isNaN(value) && value >= 0, { message: "LinkedIn Allocation must be a valid number and not negative" }),
-            }),
-        //   status: z.enum(["Draft", "Active"], { message: "Please select a valid status" }),
+    }),
+
+    audience: z.object({
+      demographics: z.object({
+        ageRange: z
+          .array(z.string().min(1, { message: "Age range cannot be empty" }))
+          .min(1, { message: "Age range is required" }),
+        gender: z.enum(["Male", "Female", "Other"], {
+          message: "Please select a valid gender",
         }),
-      });
-      
+        location: z.string().min(1, { message: "Location is required" }),
+        language: z.string().min(1, { message: "Language is required" }),
+      }),
+
+      interests: z
+        .array(
+          z
+            .string()
+            .min(1, { message: "Each interest should be a non-empty string" })
+        )
+        .min(1, { message: "At least one interest is required" }),
+      //   lookalike: z.boolean().refine(value => value === true || value === false, { message: "Lookalike must be a boolean value" }),
+      //   retargeting: z.boolean().refine(value => value === true || value === false, { message: "Retargeting must be a boolean value" }),
+    }),
+
+    productDetails: z.object({
+      name: z.string().min(1, { message: "Product name is required" }),
+      description: z
+        .string()
+        .min(1, { message: "Product description is required" }),
+      promoDetails: z
+        .string()
+        .min(1, { message: "Promo details are required" }),
+      landingPageURL: z
+        .string()
+        .url({ message: "Invalid URL" })
+        .min(1, { message: "Landing page URL is required" }),
+    }),
+
+    templateUrl: z.string().min(1, "Please select a template image."),
+
+    // deployment: z.object({
+    //   platformAllocation: z.object({
+    //   metaAllocation: z.string().transform(value => parseFloat(value)).refine(value => !isNaN(value) && value >= 0, { message: "Meta Allocation must be a valid number and not negative" }),
+    //   tiktokAllocation: z.string().transform(value => parseFloat(value)).refine(value => !isNaN(value) && value >= 0, { message: "TikTok Allocation must be a valid number and not negative" }),
+    //   googleAllocation: z.string().transform(value => parseFloat(value)).refine(value => !isNaN(value) && value >= 0, { message: "Google Allocation must be a valid number and not negative" }),
+    //   linkedinAllocation: z.string().transform(value => parseFloat(value)).refine(value => !isNaN(value) && value >= 0, { message: "LinkedIn Allocation must be a valid number and not negative" }),
+    //     }),
+    //   status: z.enum(["Draft", "Active"], { message: "Please select a valid status" }),
+    // }),
+  });
 
   const {
     control,
     handleSubmit,
     formState: { errors },
     getValues,
+    watch,
+    trigger,
   } = useForm({
     resolver: zodResolver(schema),
+    mode: "onChange",
   });
-  
+
   console.log(errors);
+
+  const [showImageSelector, setShowImageSelector] = useState(false);
+  const selectedTemplate = watch("templateUrl");
+
+  const handleTemplateCreationApi = async () => {
+    const formData = getValues();
+    // formData.templateUrl = templateUrl; // Add the template URL to form data
+
+    try {
+      const response = await axios.post("your-api-endpoint", formData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("handleTemplateCreationApi Response:", response.data);
+    } catch (error) {
+      console.error("handleTemplateCreationApi Error:", error);
+    }
+  };
+
+  const handleGenerateClick = async () => {
+    const fieldsToValidate = Object.keys(getValues());
+
+    const fieldsWithoutTemplateUrl = fieldsToValidate.filter(
+      (field) => field !== "templateUrl"
+    );
+    const isValidForm = await trigger(fieldsWithoutTemplateUrl);
+
+    if (isValidForm) {
+      handleTemplateCreationApi();
+      setShowImageSelector(true);
+    }
+  };
 
   const onSubmit = (data) => {
     console.log("Form submitted:", data);
@@ -87,14 +170,13 @@ const AddCampaign = () => {
         Create New Campaign
       </Typography>
 
-      <Box sx={{ py: "16px", overflow: "auto", height: '90%' }}>
+      <Box sx={{ py: "16px", overflow: "auto", height: "90%" }}>
         <form
           onSubmit={handleSubmit(onSubmit)}
           style={{ display: "flex", flexDirection: "column", gap: 20 }}
         >
           {/* Grid container */}
           <Grid container spacing={2}>
-            {/* Name Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="name"
@@ -113,7 +195,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Goal Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="goal"
@@ -123,9 +204,15 @@ const AddCampaign = () => {
                     <InputLabel>Goal</InputLabel>
                     <Select {...field} label="Goal">
                       <MenuItem value="Sales Growth">Sales Growth</MenuItem>
-                      <MenuItem value="Lead Generation">Lead Generation</MenuItem>
-                      <MenuItem value="Brand Awareness">Brand Awareness</MenuItem>
-                      <MenuItem value="App Installations">App Installations</MenuItem>
+                      <MenuItem value="Lead Generation">
+                        Lead Generation
+                      </MenuItem>
+                      <MenuItem value="Brand Awareness">
+                        Brand Awareness
+                      </MenuItem>
+                      <MenuItem value="App Installations">
+                        App Installations
+                      </MenuItem>
                       <MenuItem value="Custom">Custom</MenuItem>
                     </Select>
                     <FormHelperText>{errors.goal?.message}</FormHelperText>
@@ -134,7 +221,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Custom Goal Field */}
             {getValues("goal") === "Custom" && (
               <Grid size={{ xs: 4 }}>
                 <Controller
@@ -155,7 +241,6 @@ const AddCampaign = () => {
               </Grid>
             )}
 
-            {/* KPIs Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="kpis"
@@ -175,7 +260,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Total Budget Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="budget.total"
@@ -195,7 +279,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Daily Cap Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="budget.dailyCap"
@@ -215,7 +298,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Duration Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="budget.duration"
@@ -235,7 +317,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Age Range Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="audience.demographics.ageRange"
@@ -249,13 +330,14 @@ const AddCampaign = () => {
                     {...field}
                     onChange={(e) => field.onChange(e.target.value.split(","))}
                     error={!!errors.audience?.demographics?.ageRange}
-                    helperText={errors.audience?.demographics?.ageRange?.message}
+                    helperText={
+                      errors.audience?.demographics?.ageRange?.message
+                    }
                   />
                 )}
               />
             </Grid>
 
-            {/* Gender Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="audience.demographics.gender"
@@ -280,7 +362,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Location Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="audience.demographics.location"
@@ -293,13 +374,14 @@ const AddCampaign = () => {
                     fullWidth
                     {...field}
                     error={!!errors.audience?.demographics?.location}
-                    helperText={errors.audience?.demographics?.location?.message}
+                    helperText={
+                      errors.audience?.demographics?.location?.message
+                    }
                   />
                 )}
               />
             </Grid>
 
-            {/* Language Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="audience.demographics.language"
@@ -312,13 +394,14 @@ const AddCampaign = () => {
                     fullWidth
                     {...field}
                     error={!!errors.audience?.demographics?.language}
-                    helperText={errors.audience?.demographics?.language?.message}
+                    helperText={
+                      errors.audience?.demographics?.language?.message
+                    }
                   />
                 )}
               />
             </Grid>
 
-            {/* Interests Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="audience.interests"
@@ -338,7 +421,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Product Name Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="productDetails.name"
@@ -357,7 +439,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Product Description Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="productDetails.description"
@@ -377,7 +458,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Promo Details Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="productDetails.promoDetails"
@@ -396,7 +476,6 @@ const AddCampaign = () => {
               />
             </Grid>
 
-            {/* Landing Page URL Field */}
             <Grid size={{ xs: 4 }}>
               <Controller
                 name="productDetails.landingPageURL"
@@ -414,91 +493,139 @@ const AddCampaign = () => {
                 )}
               />
             </Grid>
-          <Grid size={{ xs: 4 }}>
-  <Controller
-    name="deployment.platformAllocation.metaAllocation"
-    control={control}
-    render={({ field }) => (
-      <TextField
-        size="small"
-        label="Meta Allocation"
-        variant="outlined"
-        fullWidth
-        type="number"
-        {...field}
-        error={!!errors.deployment?.platformAllocation?.metaAllocation}
-        helperText={errors.deployment?.platformAllocation?.metaAllocation?.message}
-      />
-    )}
-  />
-</Grid>
+            {/* <Grid size={{ xs: 4 }}>
+              <Controller
+                name="deployment.platformAllocation.metaAllocation"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    size="small"
+                    label="Meta Allocation"
+                    variant="outlined"
+                    fullWidth
+                    type="number"
+                    {...field}
+                    error={
+                      !!errors.deployment?.platformAllocation?.metaAllocation
+                    }
+                    helperText={
+                      errors.deployment?.platformAllocation?.metaAllocation
+                        ?.message
+                    }
+                  />
+                )}
+              />
+            </Grid>
 
-{/* TikTok Allocation Field */}
-<Grid size={{ xs: 4 }}>
-  <Controller
-    name="deployment.platformAllocation.tiktokAllocation"
-    control={control}
-    render={({ field }) => (
-      <TextField
-        size="small"
-        label="TikTok Allocation"
-        variant="outlined"
-        fullWidth
-        type="number"
-        {...field}
-        error={!!errors.deployment?.platformAllocation?.tiktokAllocation}
-        helperText={errors.deployment?.platformAllocation?.tiktokAllocation?.message}
-      />
-    )}
-  />
-</Grid>
+            <Grid size={{ xs: 4 }}>
+              <Controller
+                name="deployment.platformAllocation.tiktokAllocation"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    size="small"
+                    label="TikTok Allocation"
+                    variant="outlined"
+                    fullWidth
+                    type="number"
+                    {...field}
+                    error={
+                      !!errors.deployment?.platformAllocation?.tiktokAllocation
+                    }
+                    helperText={
+                      errors.deployment?.platformAllocation?.tiktokAllocation
+                        ?.message
+                    }
+                  />
+                )}
+              />
+            </Grid>
 
-{/* Google Allocation Field */}
-<Grid size={{ xs: 4 }}>
-  <Controller
-    name="deployment.platformAllocation.googleAllocation"
-    control={control}
-    render={({ field }) => (
-      <TextField
-        size="small"
-        label="Google Allocation"
-        variant="outlined"
-        fullWidth
-        type="number"
-        {...field}
-        error={!!errors.deployment?.platformAllocation?.googleAllocation}
-        helperText={errors.deployment?.platformAllocation?.googleAllocation?.message}
-      />
-    )}
-  />
-</Grid>
+            <Grid size={{ xs: 4 }}>
+              <Controller
+                name="deployment.platformAllocation.googleAllocation"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    size="small"
+                    label="Google Allocation"
+                    variant="outlined"
+                    fullWidth
+                    type="number"
+                    {...field}
+                    error={
+                      !!errors.deployment?.platformAllocation?.googleAllocation
+                    }
+                    helperText={
+                      errors.deployment?.platformAllocation?.googleAllocation
+                        ?.message
+                    }
+                  />
+                )}
+              />
+            </Grid>
 
-{/* LinkedIn Allocation Field */}
-<Grid size={{ xs: 4 }}>
-  <Controller
-    name="deployment.platformAllocation.linkedinAllocation"
-    control={control}
-    render={({ field }) => (
-      <TextField
-        size="small"
-        label="LinkedIn Allocation"
-        variant="outlined"
-        fullWidth
-        type="number"
-        {...field}
-        error={!!errors.deployment?.platformAllocation?.linkedinAllocation}
-        helperText={errors.deployment?.platformAllocation?.linkedinAllocation?.message}
-      />
-    )}
-  />
-</Grid>
+            <Grid size={{ xs: 4 }}>
+              <Controller
+                name="deployment.platformAllocation.linkedinAllocation"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    size="small"
+                    label="LinkedIn Allocation"
+                    variant="outlined"
+                    fullWidth
+                    type="number"
+                    {...field}
+                    error={
+                      !!errors.deployment?.platformAllocation
+                        ?.linkedinAllocation
+                    }
+                    helperText={
+                      errors.deployment?.platformAllocation?.linkedinAllocation
+                        ?.message
+                    }
+                  />
+                )}
+              />
+            </Grid> */}
           </Grid>
-
+          {!showImageSelector && (
+            <Grid container justifyContent="flex-end">
+              <Grid size={{ xs: 4 }}>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  fullWidth
+                  endIcon={<ImageSearchIcon />}
+                  sx={{
+                    textTransform: "none",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                  onClick={handleGenerateClick}
+                >
+                  Generate Template
+                </Button>
+              </Grid>
+            </Grid>
+          )}
+          {showImageSelector && (
+            <Grid item xs={12}>
+              <ImageSelector control={control} errors={errors} />
+            </Grid>
+          )}
 
           {/* Submit Button */}
           <Grid container justifyContent="flex-end">
             <Grid size={{ xs: 4 }}>
-              <Button variant="contained" color="primary" type="submit" fullWidth>
+              <Button
+                variant="contained"
+                color="primary"
+                type="submit"
+                fullWidth
+                disabled={!showImageSelector}
+              >
                 Create
               </Button>
             </Grid>

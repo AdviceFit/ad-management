@@ -1,18 +1,15 @@
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from "@mui/material";
-import React, { useState } from "react";
+import { Box, Button, Typography } from "@mui/material";
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import ImageSelector from "./ImageSelector";
 
 const Campaigns = () => {
-    const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
-    // Function to open the dialog
-    const handleClickOpen = () => {
-      setOpen(true);
-    };
-  
-    // Function to close the dialog
-    const handleClose = () => {
-      setOpen(false);
-    };
+  const handleCreateCampaign = () => {
+    navigate("/campaigns/add");
+  };
+
   return (
     <Box>
       <Box
@@ -30,7 +27,7 @@ const Campaigns = () => {
             padding: "8px",
             textTransform: "none",
           }}
-          onClick={handleClickOpen}
+          onClick={handleCreateCampaign}
         >
           <Typography variant="body1" color="rgb(88, 145, 243)">
             Create Campaign
@@ -38,39 +35,7 @@ const Campaigns = () => {
         </Button>
       </Box>
 
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>Create New Campaign</DialogTitle>
-        <DialogContent  >
-          {/* Form with 9 fields in a 3x3 layout */}
-          <Box
-            component="form"
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)", // 3 columns for the form
-              gap: 2, // Space between the fields
-            }}
-          >
-            {/* 9 Fields */}
-            {[...Array(9)].map((_, index) => (
-              <TextField
-                key={index}
-                label={`Field ${index + 1}`}
-                variant="outlined"
-                fullWidth
-              />
-            ))}
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleClose} color="primary">
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-
+      <ImageSelector />
     </Box>
   );
 };
