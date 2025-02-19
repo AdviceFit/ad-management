@@ -645,26 +645,26 @@ const AddCampaign = () => {
               />
             </Grid> */}
           </Grid>
-          {!showImageSelector && (
-            <Grid container justifyContent="flex-end">
-              <Grid size={{ xs: 4 }}>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  fullWidth
-                  endIcon={<ImageSearchIcon />}
-                  sx={{
-                    textTransform: "none",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                  onClick={handleGenerateClick}
-                >
-                  Generate Template
-                </Button>
-              </Grid>
+          {/* {!showImageSelector && ( */}
+          <Grid container justifyContent="flex-end">
+            <Grid size={{ xs: 4 }}>
+              <Button
+                variant="outlined"
+                color="primary"
+                fullWidth
+                endIcon={<ImageSearchIcon />}
+                sx={{
+                  textTransform: "none",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                onClick={handleGenerateClick}
+              >
+                Generate Template
+              </Button>
             </Grid>
-          )}
+          </Grid>
+          {/* )} */}
 
           {isLoading && (
             <Grid container justifyContent="center">
